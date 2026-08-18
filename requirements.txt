@@ -1,0 +1,10 @@
+# Runtime dependencies.
+#
+# pygame is optional: without it the game falls back to the Tk backend
+# that ships with the standard library.  It is listed here because the
+# SDL backend is smoother and is the one used for the packaged build.
+pygame>=2.5,<3
+
+# The A-Maze-ing package assigned to the group is NOT listed here: it
+# is not published on PyPI.  Install it from the archive delivered with
+# the project with `make install` or `python3 install_generator.py`.

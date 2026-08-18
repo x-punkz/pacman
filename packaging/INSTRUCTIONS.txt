@@ -1,0 +1,57 @@
+================================================================
+ PAC-MAN - GHOSTS! MORE GHOSTS!
+ A 42 school project
+================================================================
+
+HOW TO PLAY
+-----------
+  Start "pacman" (pacman.exe on Windows).
+  Eat every pacgum in the maze before the clock runs out.
+  Four ghosts are after you: Blinky chases, Pinky cuts corners,
+  Inky flanks and Clyde panics when you get close.
+  The four super-pacgums, one per corner, make the ghosts edible
+  for a few seconds.
+
+CONTROLS
+--------
+  Arrow keys or W A S D .... move Pac-Man
+  P or ESC ................. pause / resume
+  UP / DOWN ................ move through a menu
+  ENTER .................... validate
+  F1 ....................... turn the cheat mode on or off
+
+CHEAT MODE (press F1 while playing)
+-----------------------------------
+  F2 ... invincibility            F6 ... skip the current level
+  F3 ... freeze the ghosts        F7 ... one extra life
+  F4 ... faster Pac-Man           F8 ... leave a single pacgum
+  F5 ... show the ghost targets
+
+CONFIGURATION
+-------------
+  Every setting lives in "config.json", next to the executable.
+  It is JSON with comments: lines starting with '#' are ignored.
+  The most useful keys are:
+
+    lives ..................... lives you start with
+    pacgum .................... pacgums per maze (0 = fill all)
+    points_per_pacgum ......... score for a pacgum
+    points_per_super_pacgum ... score for a super-pacgum
+    points_per_ghost .......... score for an edible ghost
+    seed ...................... seed of the first maze
+    level_max_time ............ seconds allowed per level
+    levels .................... list of maze sizes, one per level
+
+  A missing or invalid value never crashes the game: it falls back
+  to a safe default and the notice is shown on start-up.
+
+  Launch with another file from a terminal:
+      pacman my-config.json
+
+HIGHSCORES
+----------
+  The top ten is stored in "highscores.json" next to the config
+  file.  If that folder is read-only, the game falls back to your
+  user data directory.
+
+================================================================

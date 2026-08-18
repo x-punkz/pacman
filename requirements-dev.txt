@@ -1,0 +1,6 @@
+# Tooling used by `make lint`, `make lint-strict` and `make test`.
+-r requirements.txt
+flake8>=7.0
+mypy>=1.8
+pytest>=8.0
+pyinstaller>=6.0

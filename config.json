@@ -1,0 +1,73 @@
+# ---------------------------------------------------------------------
+# Pac-Man - Ghosts! More ghosts!
+#
+# This file is JSON with comments: lines starting with '#' are ignored,
+# and '//' plus '/* ... */' are accepted as well.  Every key is
+# optional: a missing or invalid value falls back to a safe default and
+# the game prints a clear message instead of crashing.
+# Unknown keys are simply ignored.
+#
+# See the "Configuration" section of README.md for the full reference.
+# ---------------------------------------------------------------------
+{
+    # Where the top-10 table is stored, relative to this file.
+    "highscore_filename": "highscores.json",
+
+    # Lives the player starts with.
+    "lives": 3,
+
+    # Number of pacgums scattered in each maze.
+    # Use 0 to fill every corridor instead (classic look, much longer
+    # levels: raise "level_max_time" as well if you do).
+    "pacgum": 42,
+
+    # Scoring.
+    "points_per_pacgum": 10,
+    "points_per_super_pacgum": 50,
+    "points_per_ghost": 200,
+
+    # Seed of the very first maze; the following ones are random.
+    # 0 means "fully random", as defined by the A-Maze-ing package.
+    "seed": 42,
+
+    # Seconds allowed per level, unless a level overrides it below.
+    "level_max_time": 90,
+
+    # The levels, in order.  "width" and "height" are counted in maze
+    # generator cells; the playfield ends up (2*width+1) x (2*height+1)
+    # tiles.  Each level may override "pacgum" and "max_time".
+    "levels": [
+        {"width": 15, "height": 11},
+        {"width": 15, "height": 11},
+        {"width": 17, "height": 13},
+        {"width": 17, "height": 13},
+        {"width": 19, "height": 13},
+        {"width": 19, "height": 15, "max_time": 100},
+        {"width": 21, "height": 15, "max_time": 100},
+        {"width": 21, "height": 17, "max_time": 110},
+        {"width": 23, "height": 17, "max_time": 120},
+        {"width": 23, "height": 19, "max_time": 130}
+    ],
+
+    // ----------------------------------------------------------------
+    // Optional tuning.  Remove any of these to use the default.
+    // ----------------------------------------------------------------
+
+    "player_speed": 7.0,            /* tiles per second */
+    "ghost_speed": 5.2,             /* tiles per second on level 1    */
+    "ghost_speed_step": 0.16,       /* added per extra level          */
+    "ghost_frightened_speed": 3.2,
+    "super_pacgum_duration": 8.0,   /* seconds of edible ghosts       */
+    "ghost_respawn_delay": 6.0,     /* seconds before an eaten ghost
+                                       comes back to its corner       */
+    "scatter_duration": 7.0,        /* calm seconds starting a level  */
+    "ghost_score_doubling": false,  /* true: 200, 400, 800, 1600 ...  */
+    "timeout_costs_life": true,     /* false: retry the level for free */
+    "cheat_mode": false,            /* true: cheats already unlocked   */
+
+    "highscore_size": 10,
+    "window_width": 960,
+    "window_height": 720,
+    "target_fps": 60,
+    "backend": "auto"               /* "auto", "pygame" or "tk" */
+}
