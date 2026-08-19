@@ -127,6 +127,13 @@ def draw_super_pacgum(image: Image, center_x: int, center_y: int,
     image.fill_disc(center_x, center_y, scaled, theme.SUPER_PACGUM)
 
 
+def draw_bonus(image: Image, center_x: int, center_y: int, radius: int,
+               pulse: float) -> None:
+    """Draw the bonus item as a pulsing dot; used when no artwork loads."""
+    scaled = max(2, int(radius * (0.75 + 0.25 * pulse)))
+    image.fill_disc(center_x, center_y, scaled, theme.SUCCESS)
+
+
 def draw_life_icon(image: Image, x: int, y: int, size: int) -> None:
     """Draw the little Pac-Man used to show the remaining lives."""
     radius = max(3, size // 2)

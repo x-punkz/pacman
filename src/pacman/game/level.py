@@ -4,13 +4,23 @@ import random
 from dataclasses import dataclass, field
 from enum import Enum
 
+from typing import Optional
+
 from ..settings import Config, LevelSpec
 from .cheats import Cheats
 from .entities import Player
-from .ghosts import Ghost, build_ghosts
+from .ghosts import Ghost, GhostKind, GhostState, build_ghosts
 from .maze import Maze, Tile
 
 EAT_DISTANCE = 0.6
+
+#: Below this fraction of dots remaining, Blinky enters "Cruise Elroy"
+#: mode and hunts faster -- the fiercest of the four by design.
+BLINKY_FIERCE_FRACTION = 0.3
+BLINKY_FIERCE_BOOST = 1.15
+
+#: Fraction of dots that must be eaten before the bonus item appears.
+BONUS_TRIGGER_FRACTION = 0.5
 
 
 class LevelOutcome(Enum):
@@ -31,11 +41,12 @@ class LevelEvents:
     pacgums: int = 0
     supers: int = 0
     ghosts: int = 0
+    bonus: int = 0
 
     @property
     def anything_eaten(self) -> bool:
         """Return ``True`` when the player swallowed something."""
-        return bool(self.pacgums or self.supers or self.ghosts)
+        return bool(self.pacgums or self.supers or self.ghosts or self.bonus)
 
 
 @dataclass
@@ -56,6 +67,11 @@ class Level:
     frightened_left: float = 0.0
     elapsed: float = 0.0
     base_speed: float = field(default=6.0, repr=False)
+    total_dots: int = 0
+    bonus_tile: Optional[Tile] = None
+    bonus_active: bool = False
+    bonus_spawned: bool = False
+    bonus_left: float = 0.0
 
     @property
     def remaining_pacgums(self) -> int:
@@ -73,6 +89,7 @@ class Level:
         self.elapsed += delta
         self.player.speed = self.base_speed * cheats.player_speed_factor
         self.player.update(delta, self.maze)
+        self._update_bonus(delta)
         self._eat(events)
         self._update_ghosts(delta, cheats)
         self._collide(events, cheats)
@@ -83,6 +100,7 @@ class Level:
         """Clear every dot at once; used by the cheat menu."""
         self.pacgums.clear()
         self.supers.clear()
+        self.bonus_active = False
 
     def leave_one_pacgum(self) -> None:
         """Leave a single dot on the board; used by the cheat menu."""
@@ -113,6 +131,27 @@ class Level:
             events.supers += 1
             events.score += self.config.points_per_super_pacgum
             self._frighten()
+        elif self.bonus_active and tile == self.bonus_tile:
+            self.bonus_active = False
+            self.bonus_left = 0.0
+            events.bonus += 1
+            events.score += self.config.points_per_bonus
+
+    def _update_bonus(self, delta: float) -> None:
+        """Spawn the bonus item once, then let it time out."""
+        if self.bonus_active:
+            self.bonus_left = max(0.0, self.bonus_left - delta)
+            if self.bonus_left == 0.0:
+                self.bonus_active = False
+            return
+        if self.bonus_spawned or self.bonus_tile is None \
+                or self.total_dots <= 0:
+            return
+        eaten = self.total_dots - self.remaining_pacgums
+        if eaten >= self.total_dots * BONUS_TRIGGER_FRACTION:
+            self.bonus_active = True
+            self.bonus_spawned = True
+            self.bonus_left = self.config.bonus_duration
 
     def _frighten(self) -> None:
         """Make every ghost edible for a while."""
@@ -131,8 +170,17 @@ class Level:
             if self.scatter_left <= 0.0:
                 ghost.start_chase()
             ghost.aim(self.player, blinky)
+            if (ghost.kind is GhostKind.BLINKY
+                    and ghost.state in (GhostState.CHASE, GhostState.SCATTER)
+                    and self._blinky_is_fierce()):
+                ghost.speed = ghost.base_speed * BLINKY_FIERCE_BOOST
             if ghost.is_active and not frozen:
                 ghost.update(delta, self.maze)
+
+    def _blinky_is_fierce(self) -> bool:
+        """Return ``True`` once few enough dots remain for Cruise Elroy."""
+        return (self.total_dots > 0 and self.remaining_pacgums
+                <= self.total_dots * BLINKY_FIERCE_FRACTION)
 
     def _collide(self, events: LevelEvents, cheats: Cheats) -> None:
         """Resolve contacts between the player and the ghosts."""
@@ -193,7 +241,10 @@ def build(config: Config, number: int, maze: Maze,
     ghosts = build_ghosts(maze.corners, speed, config.ghost_frightened_speed)
     player = Player(maze.player_start, config.player_speed)
     supers = set(maze.corners)
+    bonus_tile = _pick_bonus_tile(maze)
     reserved = supers | {maze.player_start}
+    if bonus_tile is not None:
+        reserved = reserved | {bonus_tile}
     pacgums = _scatter(maze, spec.pacgum, reserved, rng)
     return Level(
         number=number,
@@ -207,7 +258,28 @@ def build(config: Config, number: int, maze: Maze,
         max_time=spec.max_time,
         scatter_left=config.scatter_duration,
         base_speed=config.player_speed,
+        total_dots=len(pacgums) + len(supers),
+        bonus_tile=bonus_tile,
     )
+
+
+def _pick_bonus_tile(maze: Maze) -> Optional[Tile]:
+    """Return a corridor tile near the centre, clear of fixed spawns.
+
+    It must differ from the player's spawn tile: the player lands back
+    on that exact tile after losing a life, and an identical bonus
+    tile would let a respawn collect it for free, unseen.
+    """
+    excluded = {maze.player_start} | set(maze.corners)
+    candidates = [tile for tile in maze.open_tiles if tile not in excluded]
+    if not candidates:
+        return None
+    center_x, center_y = maze.width / 2.0, maze.height / 2.0
+
+    def distance(tile: Tile) -> float:
+        return abs(tile[0] - center_x) + abs(tile[1] - center_y)
+
+    return min(candidates, key=distance)
 
 
 def spec_for(config: Config, number: int) -> LevelSpec:

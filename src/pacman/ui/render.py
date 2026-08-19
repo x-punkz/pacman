@@ -11,7 +11,7 @@ from ..game.maze import CORRIDOR, Maze
 from ..game.session import Session
 from ..mlxlib import Mlx
 from ..mlxlib.image import Image
-from . import sprites, theme
+from . import skin, sprites, theme
 
 
 @dataclass(frozen=True)
@@ -93,32 +93,41 @@ class Renderer:
         for tile_x, tile_y in level.pacgums:
             sprites.draw_pacgum(self.frame, layout.screen_x(tile_x),
                                 layout.screen_y(tile_y), radius)
-        big = max(2, layout.tile // 3)
-        for tile_x, tile_y in level.supers:
-            sprites.draw_super_pacgum(self.frame, layout.screen_x(tile_x),
-                                      layout.screen_y(tile_y), big, pulse)
+        icon_box = max(2, int(layout.tile * 0.85))
+        occupied = {ghost.tile for ghost in level.ghosts}
+        for index, tile in enumerate(level.maze.corners):
+            if tile not in level.supers or tile in occupied:
+                continue
+            skin.draw_super_pacgum(self.frame, layout.screen_x(tile[0]),
+                                   layout.screen_y(tile[1]), icon_box,
+                                   index, pulse)
+        if (level.bonus_active and level.bonus_tile is not None
+                and level.bonus_tile not in occupied):
+            skin.draw_bonus(self.frame, layout.screen_x(level.bonus_tile[0]),
+                            layout.screen_y(level.bonus_tile[1]), icon_box,
+                            pulse)
         if cheats.targets_visible:
             self._draw_targets(level)
         for ghost in level.ghosts:
-            self._draw_ghost(ghost, layout)
+            self._draw_ghost(ghost, layout, clock)
         player = level.player
-        sprites.draw_pacman(self.frame, layout.screen_x(player.x),
-                            layout.screen_y(player.y),
-                            max(2, int(layout.tile * 0.42)),
-                            player.direction, player.mouth_openness)
+        skin.draw_pacman(self.frame, layout.screen_x(player.x),
+                         layout.screen_y(player.y),
+                         max(2, int(layout.tile * 0.42)),
+                         player.direction, player.mouth_openness, clock)
 
-    def _draw_ghost(self, ghost: Ghost, layout: Layout) -> None:
+    def _draw_ghost(self, ghost: Ghost, layout: Layout,
+                    clock: float) -> None:
         """Draw one ghost, or just its eyes when it has been eaten."""
         x = layout.screen_x(ghost.x)
         y = layout.screen_y(ghost.y)
         size = max(4, int(layout.tile * 0.82))
         if not ghost.is_active:
-            sprites.draw_eyes(self.frame, x, y, max(3, size // 2),
-                              ghost.direction)
+            skin.draw_eyes(self.frame, x, y, max(3, size // 2),
+                           ghost.direction)
             return
-        sprites.draw_ghost(self.frame, x, y, size,
-                           theme.ghost_color(ghost.kind), ghost.direction,
-                           ghost.is_edible, ghost.is_flashing)
+        skin.draw_ghost(self.frame, x, y, size, ghost.kind, ghost.direction,
+                        ghost.is_edible, ghost.is_flashing, clock)
 
     def _draw_targets(self, level: Level) -> None:
         """Mark where each ghost is heading; a cheat-mode helper."""

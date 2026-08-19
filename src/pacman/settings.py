@@ -33,6 +33,7 @@ _EXTRA_KEYS = frozenset((
     "ghost_respawn_delay", "scatter_duration", "ghost_score_doubling",
     "timeout_costs_life", "cheat_mode", "window_width", "window_height",
     "target_fps", "backend", "highscore_size",
+    "points_per_bonus", "bonus_duration",
 ))
 
 _LEVEL_KEYS = frozenset(("width", "height", "pacgum", "max_time"))
@@ -60,6 +61,8 @@ class Config:
     points_per_pacgum: int = 10
     points_per_super_pacgum: int = 50
     points_per_ghost: int = 200
+    points_per_bonus: int = 500
+    bonus_duration: float = 10.0
     seed: int = 42
     level_max_time: float = 90.0
     levels: tuple[LevelSpec, ...] = field(default_factory=tuple)
@@ -224,6 +227,12 @@ def load_config(path: Path) -> tuple[Config, list[str]]:
             0, 100000),
         points_per_ghost=reader.integer(
             "points_per_ghost", defaults.points_per_ghost, 0, 100000),
+        points_per_bonus=reader.integer(
+            "points_per_bonus", defaults.points_per_bonus, 0, 100000,
+            required=False),
+        bonus_duration=reader.number(
+            "bonus_duration", defaults.bonus_duration, 1.0, 120.0,
+            required=False),
         seed=reader.integer("seed", defaults.seed, 0, 2 ** 31 - 1),
         level_max_time=level_max_time,
         levels=_read_levels(raw, warnings, pacgum, level_max_time),
