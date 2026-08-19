@@ -6,12 +6,12 @@ from typing import Optional
 
 from ..game.cheats import Cheats
 from ..game.ghosts import Ghost
-from ..game.level import Level
+from ..game.level import POPUP_LIFETIME, Level
 from ..game.maze import CORRIDOR, Maze
 from ..game.session import Session
 from ..mlxlib import Mlx
 from ..mlxlib.image import Image
-from . import sprites, theme
+from . import skin, sprites, theme
 
 
 @dataclass(frozen=True)
@@ -41,6 +41,7 @@ class Renderer:
         self.height = height
         self.frame = mlx.new_image(width, height)
         self._background = mlx.new_image(width, height)
+        self._background_frightened = mlx.new_image(width, height)
         self._layout = Layout(theme.MIN_TILE, 0, 0)
         self._maze: Optional[Maze] = None
 
@@ -79,46 +80,73 @@ class Renderer:
         self._maze = maze
         self._layout = _compute_layout(maze, self.width, self.height)
         self._background.clear(theme.BACKGROUND)
-        _paint_walls(self._background, maze, self._layout)
+        _paint_walls(self._background, maze, self._layout, theme.WALL,
+                     theme.WALL_EDGE)
+        self._background_frightened.clear(theme.BACKGROUND)
+        _paint_walls(self._background_frightened, maze, self._layout,
+                     theme.WALL_FRIGHTENED, theme.WALL_EDGE_FRIGHTENED)
 
     def draw_level(self, level: Level, cheats: Cheats,
                    clock: float) -> None:
         """Draw the maze, the dots, the ghosts and the player."""
         if self._maze is not level.maze:
             self.prepare(level.maze)
-        self.frame.copy_from(self._background)
+        background = (self._background_frightened
+                      if level.frightened_left > 0.0 else self._background)
+        self.frame.copy_from(background)
         layout = self._layout
         pulse = 0.5 + 0.5 * math.sin(clock * 6.0)
         radius = max(1, layout.tile // 8)
         for tile_x, tile_y in level.pacgums:
             sprites.draw_pacgum(self.frame, layout.screen_x(tile_x),
                                 layout.screen_y(tile_y), radius)
-        big = max(2, layout.tile // 3)
-        for tile_x, tile_y in level.supers:
-            sprites.draw_super_pacgum(self.frame, layout.screen_x(tile_x),
-                                      layout.screen_y(tile_y), big, pulse)
+        icon_box = max(2, int(layout.tile * 0.85))
+        occupied = {ghost.tile for ghost in level.ghosts}
+        for tile in level.maze.corners:
+            if tile not in level.supers or tile in occupied:
+                continue
+            skin.draw_super_pacgum(self.frame, layout.screen_x(tile[0]),
+                                   layout.screen_y(tile[1]), icon_box,
+                                   pulse)
+        if (level.bonus_active and level.bonus_tile is not None
+                and level.bonus_tile not in occupied):
+            skin.draw_bonus(self.frame, layout.screen_x(level.bonus_tile[0]),
+                            layout.screen_y(level.bonus_tile[1]), icon_box,
+                            level.bonus_icon, pulse)
         if cheats.targets_visible:
             self._draw_targets(level)
         for ghost in level.ghosts:
-            self._draw_ghost(ghost, layout)
+            self._draw_ghost(ghost, layout, clock)
         player = level.player
-        sprites.draw_pacman(self.frame, layout.screen_x(player.x),
-                            layout.screen_y(player.y),
-                            max(2, int(layout.tile * 0.42)),
-                            player.direction, player.mouth_openness)
+        skin.draw_pacman(self.frame, layout.screen_x(player.x),
+                         layout.screen_y(player.y),
+                         max(2, int(layout.tile * 0.42)),
+                         player.direction, player.mouth_openness, clock)
+        self._draw_popups(level)
 
-    def _draw_ghost(self, ghost: Ghost, layout: Layout) -> None:
+    def _draw_popups(self, level: Level) -> None:
+        """Draw every "+N xp" readout, rising and fading as it ages."""
+        layout = self._layout
+        for popup in level.popups:
+            fraction = min(1.0, popup.age / POPUP_LIFETIME)
+            rise = int(fraction * layout.tile)
+            x = layout.screen_x(popup.x)
+            y = layout.screen_y(popup.y) - rise
+            width = self.mlx.text_width(popup.text)
+            self.text(x - width // 2, y, popup.text, theme.TEXT)
+
+    def _draw_ghost(self, ghost: Ghost, layout: Layout,
+                    clock: float) -> None:
         """Draw one ghost, or just its eyes when it has been eaten."""
         x = layout.screen_x(ghost.x)
         y = layout.screen_y(ghost.y)
         size = max(4, int(layout.tile * 0.82))
         if not ghost.is_active:
-            sprites.draw_eyes(self.frame, x, y, max(3, size // 2),
-                              ghost.direction)
+            skin.draw_eyes(self.frame, x, y, max(3, size // 2),
+                           ghost.direction)
             return
-        sprites.draw_ghost(self.frame, x, y, size,
-                           theme.ghost_color(ghost.kind), ghost.direction,
-                           ghost.is_edible, ghost.is_flashing)
+        skin.draw_ghost(self.frame, x, y, size, ghost.kind, ghost.direction,
+                        ghost.is_edible, ghost.is_flashing, clock)
 
     def _draw_targets(self, level: Level) -> None:
         """Mark where each ghost is heading; a cheat-mode helper."""
@@ -166,7 +194,8 @@ def _compute_layout(maze: Maze, width: int, height: int) -> Layout:
     return Layout(tile, origin_x, origin_y)
 
 
-def _paint_walls(image: Image, maze: Maze, layout: Layout) -> None:
+def _paint_walls(image: Image, maze: Maze, layout: Layout, color: int,
+                 edge_color: int) -> None:
     """Paint the maze walls as connected rounded blocks."""
     tile = layout.tile
     pad = max(1, tile // 4)
@@ -177,8 +206,8 @@ def _paint_walls(image: Image, maze: Maze, layout: Layout) -> None:
             left = layout.origin_x + x * tile
             top = layout.origin_y + y * tile
             _blob(image, maze, x, y, left, top, tile, pad - 1
-                  if pad > 1 else pad, theme.WALL_EDGE)
-            _blob(image, maze, x, y, left, top, tile, pad, theme.WALL)
+                  if pad > 1 else pad, edge_color)
+            _blob(image, maze, x, y, left, top, tile, pad, color)
 
 
 def _blob(image: Image, maze: Maze, x: int, y: int, left: int, top: int,

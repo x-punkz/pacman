@@ -9,6 +9,9 @@ BACKGROUND: Final = 0x05050F
 PANEL: Final = 0x11112B
 WALL: Final = 0x2121DE
 WALL_EDGE: Final = 0x5A5AFF
+#: Wall colours while a super pacgum's frightened effect is running.
+WALL_FRIGHTENED: Final = 0x21DE21
+WALL_EDGE_FRIGHTENED: Final = 0x5AFF5A
 PACGUM: Final = 0xFFB897
 SUPER_PACGUM: Final = 0xFFE1B8
 PACMAN: Final = 0xFFF200

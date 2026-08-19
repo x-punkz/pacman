@@ -24,11 +24,13 @@ HIDDEN = [
     'pacman.mlxlib.backends.tk_backend',
 ]
 
-# Shipped next to the executable: the default configuration and the
-# in-package instructions required by the subject.
+# Shipped next to the executable: the default configuration, the
+# in-package instructions required by the subject, and the "hack the
+# world" artwork loaded by pacman.ui.assets.
 DATA = [
     ('config.json', '.'),
     (os.path.join('packaging', 'INSTRUCTIONS.txt'), '.'),
+    ('images', 'images'),
 ]
 
 analysis = Analysis(

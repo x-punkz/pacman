@@ -9,7 +9,7 @@ from ..settings import Config
 from ..game.ghosts import GhostKind
 from ..game.session import Session
 from ..highscore import Highscores, MAX_NAME_LENGTH
-from . import sprites, theme
+from . import skin, theme
 from .render import Renderer
 
 MENU_ITEMS: tuple[str, ...] = (
@@ -29,6 +29,7 @@ RULES: tuple[str, ...] = (
     "EAT EVERY PACGUM TO CLEAR THE LEVEL",
     "SUPER-PACGUMS SIT IN THE FOUR CORNERS",
     "THEY MAKE THE GHOSTS EDIBLE FOR A FEW SECONDS",
+    "A BONUS BUG APPEARS ONCE YOU'VE EATEN HALF THE DOTS",
     "A GHOST THAT TOUCHES YOU COSTS ONE LIFE",
     "THE LEVEL CLOCK COSTS A LIFE WHEN IT RUNS OUT",
 )
@@ -48,10 +49,10 @@ def draw_menu(renderer: Renderer, selection: int, scores: Highscores,
         if selected:
             width = renderer.mlx.text_width(label, 3)
             left = (renderer.width - width) // 2
-            sprites.draw_pacman(renderer.frame, left - 26,
-                                row + renderer.mlx.text_height(3) // 2, 10,
-                                compass.RIGHT, 0.4 + 0.4 * abs(
-                                    math.sin(clock * 5.0)))
+            skin.draw_pacman(renderer.frame, left - 26,
+                             row + renderer.mlx.text_height(3) // 2, 10,
+                             compass.RIGHT, 0.4 + 0.4 * abs(
+                                 math.sin(clock * 5.0)), clock)
     _draw_menu_scores(renderer, scores)
     if notice:
         renderer.text_center(int(renderer.height * 0.90), notice,
@@ -88,14 +89,14 @@ def _draw_title(renderer: Renderer, clock: float) -> None:
     span = min(renderer.width - 120, 460)
     start = (renderer.width - span) // 2
     offset = int((clock * 60.0) % (span + 120)) - 60
-    sprites.draw_pacman(renderer.frame, start + offset, row, 14,
-                        compass.RIGHT, 0.35 + 0.35 * abs(
-                            math.sin(clock * 6.0)))
+    skin.draw_pacman(renderer.frame, start + offset, row, 14,
+                     compass.RIGHT, 0.35 + 0.35 * abs(
+                         math.sin(clock * 6.0)), clock)
     kinds = (GhostKind.BLINKY, GhostKind.PINKY, GhostKind.INKY,
              GhostKind.CLYDE)
     for index, kind in enumerate(kinds):
-        sprites.draw_ghost(renderer.frame, start + offset - 46 - index * 40,
-                           row, 26, theme.ghost_color(kind), compass.RIGHT)
+        skin.draw_ghost(renderer.frame, start + offset - 46 - index * 40,
+                        row, 26, kind, compass.RIGHT, False, False, clock)
 
 
 def draw_highscores(renderer: Renderer, scores: Highscores,
@@ -163,7 +164,8 @@ def draw_instructions(renderer: Renderer, config: Config) -> None:
     row = _section(renderer, right, row + line, "SCORING")
     for label, value in (("PACGUM", config.points_per_pacgum),
                          ("SUPER-PACGUM", config.points_per_super_pacgum),
-                         ("GHOST", config.points_per_ghost)):
+                         ("GHOST", config.points_per_ghost),
+                         ("BONUS BUG", config.points_per_bonus)):
         renderer.text(right, row, label, theme.TEXT_DIM, 1)
         renderer.text_right(right + 240, row, "+%d" % value, theme.TEXT, 1)
         row += line
@@ -214,7 +216,7 @@ def _draw_lives(renderer: Renderer, lives: int) -> None:
     shown = min(lives, 5)
     for index in range(shown):
         x = right - (index + 1) * (size + 6)
-        sprites.draw_life_icon(renderer.frame, x, 24, size)
+        skin.draw_life_icon(renderer.frame, x, 24, size)
     if lives > shown:
         renderer.text_right(right - shown * (size + 6) - 6, 28,
                             "+%d" % (lives - shown), theme.TEXT_DIM, 2)

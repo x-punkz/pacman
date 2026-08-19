@@ -34,10 +34,14 @@ traceback whatever you feed it.
 ### Features
 
 * Ten levels of growing size, the first one reproducible from a seed.
-* Four ghosts with the original arcade targeting: **Blinky** chases,
-  **Pinky** cuts corners, **Inky** flanks, **Clyde** panics.
-* Super-pacgums, edible ghosts, chained scoring, lives and a level
-  clock, all driven by the configuration file.
+* A "Hack the World" theme: a hand-rolled PNG decoder and pixel-perfect
+  sprite blitting reskin the whole cast, with the original hand-drawn
+  shapes kept as a safety net if the artwork cannot be loaded.
+* Four ghosts with the original arcade targeting: **Blinky** chases
+  (and speeds up once the maze is nearly clear, arcade-style "Cruise
+  Elroy"), **Pinky** cuts corners, **Inky** flanks, **Clyde** panics.
+* Super-pacgums, edible ghosts, chained scoring, lives, a level clock
+  and a one-shot bonus item, all driven by the configuration file.
 * Main menu, in-game HUD, pause menu, game over and victory screens,
   name entry and a persistent top-ten table.
 * A cheat mode built for peer review: seven switches that make every
@@ -46,7 +50,7 @@ traceback whatever you feed it.
   reported on screen and survived.
 * A standalone build produced by `make package`, ready for itch.io.
 * `flake8`, `mypy` with the mandatory flags **and** `mypy --strict`
-  all clean; 49 unit tests.
+  all clean; 53 unit tests.
 
 ## Instructions
 
@@ -99,7 +103,7 @@ If `python3` is not on your PATH, override it: `make run PYTHON=python`.
 | `clean` | Remove `__pycache__`, `.mypy_cache`, `.pytest_cache`, `build`, `dist` |
 | `lint` | `flake8 .` and `mypy .` with the mandatory flags |
 | `lint-strict` | `flake8 .` and `mypy . --strict` |
-| `test` | Run the 49 unit tests |
+| `test` | Run the 53 unit tests |
 | `package` | Build the standalone game with PyInstaller |
 | `help` | List the targets |
 
@@ -158,6 +162,8 @@ game crash.
 | `points_per_pacgum` | int | `10` | 0 – 100000 | Score for one pacgum |
 | `points_per_super_pacgum` | int | `50` | 0 – 100000 | Score for one super-pacgum |
 | `points_per_ghost` | int | `200` | 0 – 100000 | Score for one edible ghost |
+| `points_per_bonus` | int | `500` | 0 – 100000 | Score for the bonus item (see below) |
+| `bonus_duration` | number | `10.0` | 1 – 120 | Seconds the bonus item stays on the board |
 | `seed` | int | `42` | 0 – 2³¹-1 | Seed of the **first** maze; `0` means fully random |
 | `level_max_time` | number | `90` | 5 – 3600 | Seconds per level, unless a level overrides it |
 | `levels` | list | ten built-in levels | — | One object per level, see below |
@@ -197,19 +203,52 @@ built-in ones.
 
 The shipped `config.json` is a commented reference of all of them.
 
-### About `pacgum: 42`
+### About `pacgum: 0`
 
-The subject suggests `pacgum: 42` and also asks for pacgums "in most
-corridors". A 15×11 maze has roughly 330 corridor tiles, so both
-statements cannot hold at once. The reading implemented here is
-**`pacgum` is a number of dots**, because it is the one consistent
-with the suggested 90 second clock: 42 dots is a level a good player
-clears in about 45 seconds, 330 dots is not. The dots are spread with
-farthest-point sampling, so every part of the maze holds some.
+The subject asks for pacgums "in most corridors", so the shipped
+config uses **`pacgum: 0`**, which fills every open corridor with a
+dot -- the classic arcade look. `level_max_time` for each level was
+raised accordingly (see the `levels` array), since clearing a fully
+dotted maze takes longer than clearing a sparse one.
 
-The other reading is one keystroke away: set `"pacgum": 0` and every
-corridor receives a pacgum, which gives the classic look. Raise
-`level_max_time` accordingly.
+Setting `pacgum` to a positive number switches to a fixed dot count
+instead: the dots are then spread with farthest-point sampling, so
+every part of the maze still holds some, but with visibly emptier
+corridors and a shorter clock to match.
+
+### Theme: Hack the World
+
+The artwork in `images/` reskins the arcade cast as a hacker story:
+Pac-Man is a sunglasses-wearing hacker, and the four ghosts are the
+agencies on his trail -- **Blinky** a mafia enforcer, **Pinky** the
+FBI, **Inky** federal police, **Clyde** the local police. The four
+super-pacgums are a padlock, a floppy disk and a terminal (cycling
+across the four corners), and a glowing bug -- `virus.png` -- is the
+bonus item described below.
+
+Every themed sprite is decoded from PNG by
+[`mlxlib/png.py`](src/pacman/mlxlib/png.py), a small decoder written
+against `zlib` and `struct` alone (see
+[Graphics](#graphics-a-layer-shaped-like-minilibx)). If `images/` is
+missing or a file cannot be decoded, [`ui/skin.py`](src/pacman/ui/skin.py)
+falls back to the original hand-drawn shapes in
+[`ui/sprites.py`](src/pacman/ui/sprites.py) instead of crashing.
+
+### Bonus item
+
+Once the player has eaten half of a level's dots, a bug (`virus.png`)
+appears near the centre of the maze -- the fixed tile closest to the
+middle that isn't the player's spawn point, a corner, or already
+reserved. It is worth `points_per_bonus` and disappears after
+`bonus_duration` seconds if left uneaten. It only appears once per
+level.
+
+### Blinky's Cruise Elroy mode
+
+True to the arcade original, Blinky is the fiercest of the four: once
+30% or fewer dots remain on the board, he moves 15% faster than his
+base speed (`BLINKY_FIERCE_FRACTION` / `BLINKY_FIERCE_BOOST` in
+[`game/level.py`](src/pacman/game/level.py)) until the level ends.
 
 ## Highscore
 
@@ -350,6 +389,7 @@ MiniLibX surface.
 | `Mlx.loop` / `Mlx.loop_end` | `mlx_loop` / `mlx_loop_end` |
 | `Mlx.destroy_image` | `mlx_destroy_image` |
 | `Mlx.destroy_window` | `mlx_destroy_window` |
+| `mlxlib.png.decode` | `mlx_png_file_to_image` / `mlx_texture_to_image` (MLX42) |
 
 Under that facade sits one of two interchangeable backends, each
 reduced to four operations — open a window, push a whole image to it,
@@ -361,11 +401,29 @@ read key events, close the window:
 | tkinter | `Canvas` in a `Tk` | `PhotoImage` + `create_image` | `bind` | `destroy` |
 
 Everything else is our own code writing bytes into a `bytearray`:
-rectangles, discs, the wall blocks, Pac-Man's mouth, the ghosts and
-their eyes, and a **5×7 bitmap font** drawn glyph by glyph — exactly
-what a 42 student layers on top of `mlx_pixel_put` in C. No
-`pygame.draw`, no `pygame.font`, no canvas item, no alpha blitting:
-none of them has a MiniLibX equivalent.
+rectangles, discs, the wall blocks, and a **5×7 bitmap font** drawn
+glyph by glyph — exactly what a 42 student layers on top of
+`mlx_pixel_put` in C. No `pygame.draw`, no `pygame.font`, no canvas
+item: none of them has a MiniLibX equivalent.
+
+The "hack the world" artwork works the same way. MLX42 (and some MLX
+forks) can decode a PNG file into pixels but, like `mlx_pixel_put`,
+offers no primitive to composite one image onto another — a student
+does that by hand, reading the source pixels and writing them one by
+one, respecting alpha. That is exactly what happens here:
+[`mlxlib/png.py`](src/pacman/mlxlib/png.py) decodes a PNG with nothing
+but `zlib` and `struct` (inflating the IDAT stream and reversing the
+five PNG scanline filters itself), and
+[`ui/assets.py`](src/pacman/ui/assets.py) stamps the result onto the
+frame buffer pixel by pixel -- nearest-neighbour scaled, optionally
+mirrored or rotated in 90° steps, alpha-blended with the same
+`pixel_put`-style writes as everything else.
+[`ui/skin.py`](src/pacman/ui/skin.py) maps each themed sprite (the
+player, the four ghosts, their frightened and eaten states, the
+corner icons, the bonus item) onto the matching shape in
+`ui/sprites.py`, and falls back to that hand-drawn shape whenever a
+file is missing or fails to decode -- the theme is cosmetic, never a
+crash risk.
 
 Key codes are X11 keysyms, the values MiniLibX hands to its hooks;
 each backend translates its native codes into those.
@@ -438,11 +496,14 @@ pac-man.py                      launcher, adds src/ to sys.path
         │   └── cheats          Cheats
         ├── pacman.ui           state -> pixels
         │   ├── theme           colours and layout constants
-        │   ├── sprites         Pac-Man, ghosts, dots
+        │   ├── sprites         Pac-Man, ghosts, dots (hand-drawn shapes)
+        │   ├── assets          Sheet, PNG loading and blitting
+        │   ├── skin            themed sprites, falls back to sprites
         │   ├── render          Renderer, Layout, wall cache
         │   └── screens         menus, HUD, overlays
         └── pacman.mlxlib       MLX-shaped graphics layer
             ├── image           Image, the pixel buffer
+            ├── png             PNG decoder (zlib + struct only)
             ├── font            5x7 bitmap font
             ├── keys            X11 keysyms
             ├── mlx             Mlx, the facade
@@ -462,6 +523,7 @@ pac-man.py                      launcher, adds src/ to sys.path
 | `Session` | Score, lives, the ladder of levels, win and lose |
 | `Cheats` | The seven review switches |
 | `Highscores` | The persistent top ten |
+| `Sheet` | A decoded PNG, blitted scaled/mirrored/rotated onto an `Image` |
 | `Renderer` | Frame buffer, layout, wall cache |
 | `Application` | The screen state machine and the input routing |
 
@@ -481,7 +543,7 @@ Mlx.loop ──> Application.on_frame(dt) ──> Session.update(dt)
 
 ### Tests
 
-`make test` runs 49 unit tests over the four logic modules. They open
+`make test` runs 53 unit tests over the four logic modules. They open
 no window, which is the direct benefit of keeping the game logic free
 of any drawing code. `tools/measure_balance.py` goes further and plays
 every level with an optimal bot to check that the clocks are fair.
@@ -493,9 +555,10 @@ make package        # -> dist/pacman/
 ```
 
 PyInstaller produces a self-contained folder holding the executable,
-the interpreter, `config.json` and `INSTRUCTIONS.txt`. It runs on a
-machine without Python. Launched without an argument it loads the
-bundled configuration; launched with one it loads that file instead.
+the interpreter, `config.json`, `INSTRUCTIONS.txt` and the `images/`
+artwork. It runs on a machine without Python. Launched without an
+argument it loads the bundled configuration; launched with one it
+loads that file instead.
 
 The specification (`pacman.spec`) and the build script (`package.py`)
 are both at the root of the repository, so the build can be
@@ -566,6 +629,15 @@ encourages. Concretely, it helped with:
 * **Tests and measurement.** Drafting the unit tests, and the bot in
   `tools/measure_balance.py` used to check that every level clock is
   actually beatable.
+* **The "Hack the World" theme.** Writing the PNG decoder in
+  `mlxlib/png.py` (zlib + struct only, no Pillow, to keep the "MLX
+  equivalents only" rule) and the sprite-blitting pipeline in
+  `ui/assets.py` / `ui/skin.py`; mapping the supplied artwork onto the
+  player, ghosts, corner icons and the new bonus item, with the
+  original hand-drawn shapes kept as a fallback; adding Blinky's
+  Cruise Elroy speed-up; and switching `pacgum` to `0` (fill every
+  corridor) to match "pacgums in most corridors", retiming
+  `level_max_time` for the fuller boards this produces.
 
 Everything produced this way was read, run, tested and corrected.
 Several unit tests were wrong on the first attempt because the wall

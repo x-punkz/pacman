@@ -17,9 +17,9 @@
     "lives": 3,
 
     # Number of pacgums scattered in each maze.
-    # Use 0 to fill every corridor instead (classic look, much longer
-    # levels: raise "level_max_time" as well if you do).
-    "pacgum": 42,
+    # 0 fills every corridor (classic look) -- level_max_time below is
+    # tuned for that.
+    "pacgum": 0,
 
     # Scoring.
     "points_per_pacgum": 10,
@@ -31,22 +31,22 @@
     "seed": 42,
 
     # Seconds allowed per level, unless a level overrides it below.
-    "level_max_time": 90,
+    "level_max_time": 100,
 
     # The levels, in order.  "width" and "height" are counted in maze
     # generator cells; the playfield ends up (2*width+1) x (2*height+1)
     # tiles.  Each level may override "pacgum" and "max_time".
     "levels": [
-        {"width": 15, "height": 11},
-        {"width": 15, "height": 11},
-        {"width": 17, "height": 13},
-        {"width": 17, "height": 13},
-        {"width": 19, "height": 13},
-        {"width": 19, "height": 15, "max_time": 100},
-        {"width": 21, "height": 15, "max_time": 100},
-        {"width": 21, "height": 17, "max_time": 110},
-        {"width": 23, "height": 17, "max_time": 120},
-        {"width": 23, "height": 19, "max_time": 130}
+        {"width": 15, "height": 11, "max_time": 100},
+        {"width": 15, "height": 11, "max_time": 100},
+        {"width": 17, "height": 13, "max_time": 130},
+        {"width": 17, "height": 13, "max_time": 130},
+        {"width": 19, "height": 13, "max_time": 150},
+        {"width": 19, "height": 15, "max_time": 170},
+        {"width": 21, "height": 15, "max_time": 190},
+        {"width": 21, "height": 17, "max_time": 220},
+        {"width": 23, "height": 17, "max_time": 240},
+        {"width": 23, "height": 19, "max_time": 270}
     ],
 
     // ----------------------------------------------------------------

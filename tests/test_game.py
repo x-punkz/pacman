@@ -7,7 +7,7 @@ from pacman.game import direction as compass
 from pacman.game.cheats import Cheats
 from pacman.game.entities import Player
 from pacman.game.ghosts import GhostKind, GhostState, build_ghosts
-from pacman.game.level import LevelOutcome, build
+from pacman.game.level import POPUP_LIFETIME, LevelOutcome, build
 from pacman.game.maze import Maze, from_cells
 from pacman.game.session import SessionState, new_session
 from pacman.settings import Config, LevelSpec
@@ -140,7 +140,10 @@ def test_zero_pacgum_fills_every_corridor() -> None:
     config = Config(levels=(LevelSpec(15, 11, 0, 90.0),))
     maze = small_maze()
     level = build(config, 1, maze, random.Random(1))
-    assert level.remaining_pacgums == len(maze.open_tiles) - 1
+    # Every corridor gets a dot except the player's spawn tile and the
+    # one reserved for the bonus item.
+    reserved = 1 + (1 if level.bonus_tile is not None else 0)
+    assert level.remaining_pacgums == len(maze.open_tiles) - reserved
 
 
 def test_first_maze_is_reproducible() -> None:
@@ -165,6 +168,64 @@ def test_session_reaches_victory_when_every_level_is_cleared() -> None:
     assert session.won
 
 
+def test_bonus_appears_after_half_the_dots_and_can_be_eaten() -> None:
+    """The bonus item spawns once and is worth extra points."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    bonus_tile = level.bonus_tile
+    assert bonus_tile is not None
+    assert not level.bonus_active
+    half = level.total_dots // 2
+    for tile in list(level.pacgums)[:half + 1]:
+        level.pacgums.discard(tile)
+    level.update(0.001, Cheats())
+    assert level.bonus_active
+    level.player.place(bonus_tile)
+    events = level.update(0.001, Cheats())
+    assert events.bonus == 1
+    assert events.score >= config.points_per_bonus
+    assert not level.bonus_active
+
+
+def test_bonus_does_not_respawn_after_being_eaten() -> None:
+    """Only one bonus item is offered per level."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    bonus_tile = level.bonus_tile
+    assert bonus_tile is not None
+    for tile in list(level.pacgums):
+        level.pacgums.discard(tile)
+    level.player.place(bonus_tile)
+    level.update(0.001, Cheats())
+    assert not level.bonus_active
+    assert level.bonus_spawned
+    level.update(1.0, Cheats())
+    assert not level.bonus_active
+
+
+def test_bonus_tile_survives_a_respawn() -> None:
+    """Dying and respawning must not hand the bonus over for free."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    assert level.bonus_tile != level.player.start_tile
+
+
+def test_blinky_speeds_up_once_the_maze_is_nearly_clear() -> None:
+    """Blinky's Cruise Elroy kick-in makes him the fiercest ghost."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    blinky = level.ghosts[0]
+    assert blinky.kind is GhostKind.BLINKY
+    level.pacgums.clear()
+    for tile in list(level.supers)[2:]:
+        level.supers.discard(tile)
+    level.scatter_left = 0.0
+    level.update(0.001, Cheats())
+    assert blinky.speed > blinky.base_speed
+    for ghost in level.ghosts[1:]:
+        assert ghost.speed == ghost.base_speed
+
+
 def test_session_ends_when_every_life_is_lost() -> None:
     """Losing every life ends the game."""
     session, _ = new_session(make_config(lives=1), Cheats())
@@ -177,3 +238,40 @@ def test_session_ends_when_every_life_is_lost() -> None:
     session.update(0.001)
     assert session.state is SessionState.GAME_OVER
     assert session.is_over
+
+
+def test_eating_a_super_pacgum_spawns_a_popup() -> None:
+    """A "+N xp" readout appears where the super pacgum was eaten."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    tile = sorted(level.supers)[0]
+    level.player.place(tile)
+    level.update(0.001, Cheats())
+    texts = [popup.text for popup in level.popups]
+    assert f"+{config.points_per_super_pacgum}xp" in texts
+
+
+def test_eating_a_ghost_spawns_a_popup() -> None:
+    """Eating a frightened ghost shows the score it was worth."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    ghost = level.ghosts[0]
+    ghost.place(level.maze.player_start)  # not on a corner pellet
+    ghost.frighten(5.0)
+    level.player.place(ghost.tile)
+    events = level.update(0.001, Cheats())
+    assert events.ghosts == 1
+    assert level.popups
+    assert level.popups[-1].text == f"+{config.points_per_ghost}xp"
+
+
+def test_popups_disappear_after_their_lifetime() -> None:
+    """Popups only stick around for POPUP_LIFETIME seconds."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    tile = sorted(level.supers)[0]
+    level.player.place(tile)
+    level.update(0.001, Cheats())
+    assert level.popups
+    level.update(POPUP_LIFETIME, Cheats())
+    assert not level.popups
