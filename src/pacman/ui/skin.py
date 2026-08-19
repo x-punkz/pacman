@@ -42,8 +42,13 @@ _ORIENTATIONS: Final[dict[Direction, tuple[int, bool]]] = {
     compass.UP: (3, False),
 }
 
-_SUPER_FILES: Final[tuple[str, ...]] = (
+#: The four corners are the power pellets -- one virus icon, no cycling.
+_SUPER_FILE: Final[str] = "virus.png"
+
+#: The timed bonus item rotates through these once per spawn.
+_BONUS_FILES: Final[tuple[str, ...]] = (
     "bonus_cadeado.png", "bonus_disket.png", "bonus_terminal.png",
+    "private_directory.png",
 )
 
 _WALK_HZ = 6.0
@@ -101,10 +106,9 @@ def draw_eyes(image: Image, center_x: int, center_y: int, half: int,
 
 
 def draw_super_pacgum(image: Image, center_x: int, center_y: int,
-                      box: int, corner_index: int, pulse: float) -> None:
-    """Draw a power pellet as one of the three themed icons."""
-    filename = _SUPER_FILES[corner_index % len(_SUPER_FILES)]
-    sheet = assets.sheet(filename)
+                      box: int, pulse: float) -> None:
+    """Draw a power pellet as the virus icon."""
+    sheet = assets.sheet(_SUPER_FILE)
     if sheet is None:
         sprites.draw_super_pacgum(image, center_x, center_y, box // 2,
                                   pulse)
@@ -121,9 +125,10 @@ def draw_life_icon(image: Image, x: int, y: int, size: int) -> None:
 
 
 def draw_bonus(image: Image, center_x: int, center_y: int, box: int,
-               pulse: float) -> None:
+               icon: int, pulse: float) -> None:
     """Draw the bonus item, themed sprite first, pulsing dot as backup."""
-    sheet = assets.sheet("virus.png")
+    filename = _BONUS_FILES[icon % len(_BONUS_FILES)]
+    sheet = assets.sheet(filename)
     if sheet is None:
         sprites.draw_bonus(image, center_x, center_y, box // 2, pulse)
         return

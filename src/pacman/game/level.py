@@ -22,6 +22,20 @@ BLINKY_FIERCE_BOOST = 1.15
 #: Fraction of dots that must be eaten before the bonus item appears.
 BONUS_TRIGGER_FRACTION = 0.5
 
+#: How long a "+N xp" popup stays on screen after a super pacgum, the
+#: bonus item or a ghost is eaten.
+POPUP_LIFETIME = 0.6
+
+
+@dataclass
+class Popup:
+    """A "+N xp" score readout floating over the tile it was earned on."""
+
+    x: float
+    y: float
+    text: str
+    age: float = 0.0
+
 
 class LevelOutcome(Enum):
     """What happened during the last update."""
@@ -72,6 +86,9 @@ class Level:
     bonus_active: bool = False
     bonus_spawned: bool = False
     bonus_left: float = 0.0
+    bonus_icon: int = 0
+    rng: random.Random = field(default_factory=random.Random)
+    popups: list[Popup] = field(default_factory=list)
 
     @property
     def remaining_pacgums(self) -> int:
@@ -90,6 +107,7 @@ class Level:
         self.player.speed = self.base_speed * cheats.player_speed_factor
         self.player.update(delta, self.maze)
         self._update_bonus(delta)
+        self._update_popups(delta)
         self._eat(events)
         self._update_ghosts(delta, cheats)
         self._collide(events, cheats)
@@ -118,6 +136,7 @@ class Level:
         self.scatter_left = self.config.scatter_duration
         self.frightened_left = 0.0
         self.ghost_chain = 0
+        self.popups.clear()
 
     def _eat(self, events: LevelEvents) -> None:
         """Swallow whatever sits on the player tile."""
@@ -131,11 +150,25 @@ class Level:
             events.supers += 1
             events.score += self.config.points_per_super_pacgum
             self._frighten()
+            self._spawn_popup(tile, self.config.points_per_super_pacgum)
         elif self.bonus_active and tile == self.bonus_tile:
             self.bonus_active = False
             self.bonus_left = 0.0
             events.bonus += 1
             events.score += self.config.points_per_bonus
+            self._spawn_popup(tile, self.config.points_per_bonus)
+
+    def _spawn_popup(self, tile: Tile, points: int) -> None:
+        """Show a "+N xp" readout floating over *tile*."""
+        self.popups.append(Popup(float(tile[0]), float(tile[1]),
+                                 f"+{points}xp"))
+
+    def _update_popups(self, delta: float) -> None:
+        """Age every popup and drop the ones that have run their time."""
+        for popup in self.popups:
+            popup.age += delta
+        self.popups = [popup for popup in self.popups
+                       if popup.age < POPUP_LIFETIME]
 
     def _update_bonus(self, delta: float) -> None:
         """Spawn the bonus item once, then let it time out."""
@@ -152,6 +185,7 @@ class Level:
             self.bonus_active = True
             self.bonus_spawned = True
             self.bonus_left = self.config.bonus_duration
+            self.bonus_icon = self.rng.randrange(100)
 
     def _frighten(self) -> None:
         """Make every ghost edible for a while."""
@@ -192,7 +226,9 @@ class Level:
             if ghost.is_edible:
                 self.ghost_chain += 1
                 events.ghosts += 1
-                events.score += self._ghost_value()
+                value = self._ghost_value()
+                events.score += value
+                self.popups.append(Popup(ghost.x, ghost.y, f"+{value}xp"))
                 ghost.eat(self.config.ghost_respawn_delay)
             elif not cheats.is_invincible:
                 events.outcome = LevelOutcome.LIFE_LOST
@@ -260,6 +296,7 @@ def build(config: Config, number: int, maze: Maze,
         base_speed=config.player_speed,
         total_dots=len(pacgums) + len(supers),
         bonus_tile=bonus_tile,
+        rng=rng,
     )
 
 

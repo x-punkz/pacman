@@ -7,7 +7,7 @@ from pacman.game import direction as compass
 from pacman.game.cheats import Cheats
 from pacman.game.entities import Player
 from pacman.game.ghosts import GhostKind, GhostState, build_ghosts
-from pacman.game.level import LevelOutcome, build
+from pacman.game.level import POPUP_LIFETIME, LevelOutcome, build
 from pacman.game.maze import Maze, from_cells
 from pacman.game.session import SessionState, new_session
 from pacman.settings import Config, LevelSpec
@@ -238,3 +238,40 @@ def test_session_ends_when_every_life_is_lost() -> None:
     session.update(0.001)
     assert session.state is SessionState.GAME_OVER
     assert session.is_over
+
+
+def test_eating_a_super_pacgum_spawns_a_popup() -> None:
+    """A "+N xp" readout appears where the super pacgum was eaten."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    tile = sorted(level.supers)[0]
+    level.player.place(tile)
+    level.update(0.001, Cheats())
+    texts = [popup.text for popup in level.popups]
+    assert f"+{config.points_per_super_pacgum}xp" in texts
+
+
+def test_eating_a_ghost_spawns_a_popup() -> None:
+    """Eating a frightened ghost shows the score it was worth."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    ghost = level.ghosts[0]
+    ghost.place(level.maze.player_start)  # not on a corner pellet
+    ghost.frighten(5.0)
+    level.player.place(ghost.tile)
+    events = level.update(0.001, Cheats())
+    assert events.ghosts == 1
+    assert level.popups
+    assert level.popups[-1].text == f"+{config.points_per_ghost}xp"
+
+
+def test_popups_disappear_after_their_lifetime() -> None:
+    """Popups only stick around for POPUP_LIFETIME seconds."""
+    config = make_config()
+    level = build(config, 1, small_maze(), random.Random(1))
+    tile = sorted(level.supers)[0]
+    level.player.place(tile)
+    level.update(0.001, Cheats())
+    assert level.popups
+    level.update(POPUP_LIFETIME, Cheats())
+    assert not level.popups
