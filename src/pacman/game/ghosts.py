@@ -98,22 +98,31 @@ class Ghost(Mover):
         """Send the ghost back to its corner for *respawn_delay*."""
         self.state = GhostState.EATEN
         self.timer = respawn_delay
-        self.place(self.home, compass.NONE)
         self.speed = self.base_speed
 
     def tick(self, delta: float) -> None:
         """Advance the state machine by *delta* seconds."""
-        if self.timer <= 0.0:
-            return
+
         self.timer = max(0.0, self.timer - delta)
-        if self.timer > 0.0:
-            return
+
         if self.state is GhostState.FRIGHTENED:
-            self.state = GhostState.CHASE
-            self.speed = self.base_speed
+            if self.timer == 0.0:
+                self.state = GhostState.CHASE
+                self.speed = self.base_speed
         elif self.state is GhostState.EATEN:
-            self.state = GhostState.CHASE
-            self.speed = self.base_speed
+            home_distance = (
+                (self.x - self.home[0])**2 + (self.y - self.home[1])**2
+                )**0.5
+            if home_distance < 0.3 and self.timer > 0.0:
+                self.x = float(self.home[0])
+                self.y = float(self.home[1])
+                self.speed = 0.0
+
+            if self.timer == 0.0 and (
+                self.speed == 0.0 or home_distance < 0.3
+               ):
+                self.state = GhostState.CHASE
+                self.speed = self.base_speed
 
     def aim(self, player: Mover, blinky: Optional["Ghost"]) -> None:
         """Recompute the tile this ghost is heading for."""
@@ -121,7 +130,8 @@ class Ghost(Mover):
 
     def choose_direction(self, maze: Maze) -> Direction:
         """Pick the exit that best serves the current target."""
-        if self.frozen or not self.is_active:
+
+        if self.frozen:
             return compass.NONE
         options = [step for step in DIRECTIONS
                    if maze.is_open(self.anchor[0] + step.dx,
@@ -151,6 +161,8 @@ class Ghost(Mover):
     def _target_tile(self, player: Mover,
                      blinky: Optional["Ghost"]) -> Tile:
         """Return the tile the ghost aims at, given its personality."""
+        if self.state is GhostState.EATEN:
+            return self.home
         if self.state is GhostState.SCATTER:
             return self.home
         if self.state is GhostState.FRIGHTENED:
@@ -163,9 +175,13 @@ class Ghost(Mover):
             pivot = _ahead_of(player, 2)
             origin = blinky.tile if blinky is not None else self.home
             return (pivot[0] * 2 - origin[0], pivot[1] * 2 - origin[1])
+
+        ghost_x, ghost_y = self.tile
         player_x, player_y = player.tile
-        distance = ((self.x - player_x) ** 2
-                    + (self.y - player_y) ** 2) ** 0.5
+
+        distance = ((ghost_x - player_x) ** 2
+                    + (ghost_y - player_y) ** 2) ** 0.5
+
         if distance > CLYDE_PANIC_DISTANCE:
             return player.tile
         return self.home

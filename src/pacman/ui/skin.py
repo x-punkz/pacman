@@ -42,6 +42,10 @@ _ORIENTATIONS: Final[dict[Direction, tuple[int, bool]]] = {
     compass.UP: (3, False),
 }
 
+_PACMAN_FRAMES: Final[tuple[tuple[int, int], ...]] = (
+    (0, 0), (1, 0), (2, 0),
+)
+
 #: The four corners are the power pellets -- one virus icon, no cycling.
 _SUPER_FILE: Final[str] = "virus.png"
 
@@ -58,15 +62,18 @@ _FLASH_HZ = 8.0
 def draw_pacman(image: Image, center_x: int, center_y: int, radius: int,
                 heading: Direction, openness: float, clock: float) -> None:
     """Draw the player, themed sprite first, hand-drawn disc as backup."""
-    sheet = assets.sheet("pacmano.png", columns=2, rows=2)
+    sheet = assets.sheet("pacmano.png", columns=3, rows=1)
     if sheet is None:
         sprites.draw_pacman(image, center_x, center_y, radius, heading,
                             openness)
         return
-    del clock  # the sheet only tells open from shut, no need for time
+    del clock
     turns, flip = _ORIENTATIONS.get(heading, _ORIENTATIONS[compass.LEFT])
-    column, row = (0, 0) if openness < 0.15 else (1, 0)
-    sheet.blit(image, center_x, center_y, radius * 2, column=column,
+    frame = min(len(_PACMAN_FRAMES) - 1,
+                max(0, int(
+                    max(0.0, min(1.0, openness)) * len(_PACMAN_FRAMES))))
+    column, row = _PACMAN_FRAMES[frame]
+    sheet.blit(image, center_x, center_y, radius * 3, column=column,
                row=row, flip_x=flip, quarter_turns=turns)
 
 

@@ -125,9 +125,13 @@ class Session:
     def _next_level(self) -> None:
         """Load the next level, or declare victory."""
         following = self.level.number + 1
+
         if following > self.level_count:
             self.state = SessionState.VICTORY
             return
+
+        # mudei aqui p tentar dar uma vida ao passar de nivel
+        self.lives += 1
         loaded = _load_level(self.config, following, self.rng)
         if loaded is None:
             self.state = SessionState.FAILED
@@ -166,7 +170,7 @@ def _load_level(config: Config, number: int,
                 rng: random.Random) -> Optional[Level]:
     """Generate the maze of level *number* and populate it."""
     spec = level_module.spec_for(config, number)
-    # The subject pins the first maze to the configured seed; every
+    # First maze to the configured seed; every
     # later maze is random, which the package spells "seed = 0".
     seed = config.seed if number == 1 else 0
     for attempt in range(3):

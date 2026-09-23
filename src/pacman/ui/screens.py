@@ -51,8 +51,8 @@ def draw_menu(renderer: Renderer, selection: int, scores: Highscores,
             left = (renderer.width - width) // 2
             skin.draw_pacman(renderer.frame, left - 26,
                              row + renderer.mlx.text_height(3) // 2, 10,
-                             compass.RIGHT, 0.4 + 0.4 * abs(
-                                 math.sin(clock * 5.0)), clock)
+                             compass.RIGHT, abs(
+                                 ((clock * 3.0) % 2.0) - 1.0), clock)
     _draw_menu_scores(renderer, scores)
     if notice:
         renderer.text_center(int(renderer.height * 0.90), notice,
@@ -90,8 +90,8 @@ def _draw_title(renderer: Renderer, clock: float) -> None:
     start = (renderer.width - span) // 2
     offset = int((clock * 60.0) % (span + 120)) - 60
     skin.draw_pacman(renderer.frame, start + offset, row, 14,
-                     compass.RIGHT, 0.35 + 0.35 * abs(
-                         math.sin(clock * 6.0)), clock)
+                     compass.RIGHT, abs(
+                         ((clock * 4.0) % 2.0) - 1.0), clock)
     kinds = (GhostKind.BLINKY, GhostKind.PINKY, GhostKind.INKY,
              GhostKind.CLYDE)
     for index, kind in enumerate(kinds):

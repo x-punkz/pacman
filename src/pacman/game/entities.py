@@ -155,5 +155,5 @@ class Player(Mover):
         """Return the mouth aperture, from 0.0 (shut) to 1.0 (wide)."""
         if self.direction.is_none:
             return 0.35
-        phase = (self.travelled * 2.4) % 2.0
+        phase = (self.travelled * 0.85) % 2.0
         return phase if phase <= 1.0 else 2.0 - phase

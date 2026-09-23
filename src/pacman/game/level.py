@@ -177,11 +177,20 @@ class Level:
             if self.bonus_left == 0.0:
                 self.bonus_active = False
             return
-        if self.bonus_spawned or self.bonus_tile is None \
-                or self.total_dots <= 0:
+        if self.bonus_spawned or self.total_dots <= 0:
             return
+
         eaten = self.total_dots - self.remaining_pacgums
         if eaten >= self.total_dots * BONUS_TRIGGER_FRACTION:
+            # Pega todos os corredores do mapa exceto os 4 cantos
+            valid_corridors = [
+                tile for tile in self.maze.open_tiles
+                if tile not in self.maze.corners
+            ]
+            # fazer o bonus aparecer em lugar aleatorio
+            self.bonus_tile = self.rng.choice(sorted(
+                valid_corridors))
+
             self.bonus_active = True
             self.bonus_spawned = True
             self.bonus_left = self.config.bonus_duration
@@ -208,7 +217,9 @@ class Level:
                     and ghost.state in (GhostState.CHASE, GhostState.SCATTER)
                     and self._blinky_is_fierce()):
                 ghost.speed = ghost.base_speed * BLINKY_FIERCE_BOOST
-            if ghost.is_active and not frozen:
+
+            if ((ghost.is_active or ghost.state == GhostState.EATEN)
+               and not frozen):
                 ghost.update(delta, self.maze)
 
     def _blinky_is_fierce(self) -> bool:
@@ -219,6 +230,8 @@ class Level:
     def _collide(self, events: LevelEvents, cheats: Cheats) -> None:
         """Resolve contacts between the player and the ghosts."""
         for ghost in self.ghosts:
+            if ghost.state == GhostState.EATEN:
+                continue
             if not ghost.is_active:
                 continue
             if self.player.distance_to(ghost) > EAT_DISTANCE:
@@ -243,8 +256,9 @@ class Level:
 
     def _countdown(self, delta: float, events: LevelEvents) -> None:
         """Run the level clock and the scatter / frightened timers."""
-        if self.scatter_left > 0.0:
+        if self.scatter_left > 0.0 and self.frightened_left == 0.0:
             self.scatter_left = max(0.0, self.scatter_left - delta)
+
         if self.frightened_left > 0.0:
             self.frightened_left = max(0.0, self.frightened_left - delta)
             if self.frightened_left == 0.0:
@@ -277,7 +291,7 @@ def build(config: Config, number: int, maze: Maze,
     ghosts = build_ghosts(maze.corners, speed, config.ghost_frightened_speed)
     player = Player(maze.player_start, config.player_speed)
     supers = set(maze.corners)
-    bonus_tile = _pick_bonus_tile(maze)
+    bonus_tile = None
     reserved = supers | {maze.player_start}
     if bonus_tile is not None:
         reserved = reserved | {bonus_tile}
@@ -298,25 +312,6 @@ def build(config: Config, number: int, maze: Maze,
         bonus_tile=bonus_tile,
         rng=rng,
     )
-
-
-def _pick_bonus_tile(maze: Maze) -> Optional[Tile]:
-    """Return a corridor tile near the centre, clear of fixed spawns.
-
-    It must differ from the player's spawn tile: the player lands back
-    on that exact tile after losing a life, and an identical bonus
-    tile would let a respawn collect it for free, unseen.
-    """
-    excluded = {maze.player_start} | set(maze.corners)
-    candidates = [tile for tile in maze.open_tiles if tile not in excluded]
-    if not candidates:
-        return None
-    center_x, center_y = maze.width / 2.0, maze.height / 2.0
-
-    def distance(tile: Tile) -> float:
-        return abs(tile[0] - center_x) + abs(tile[1] - center_y)
-
-    return min(candidates, key=distance)
 
 
 def spec_for(config: Config, number: int) -> LevelSpec:
