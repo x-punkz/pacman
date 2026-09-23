@@ -37,8 +37,8 @@
     # generator cells; the playfield ends up (2*width+1) x (2*height+1)
     # tiles.  Each level may override "pacgum" and "max_time".
     "levels": [
-        {"width": 15, "height": 11, "max_time": 100},
-        {"width": 15, "height": 11, "max_time": 100},
+        {"width": 15, "height": 11, "max_time": 500},
+        {"width": 15, "height": 11, "max_time": 500},
         {"width": 17, "height": 13, "max_time": 130},
         {"width": 17, "height": 13, "max_time": 130},
         {"width": 19, "height": 13, "max_time": 150},
@@ -54,11 +54,11 @@
     // ----------------------------------------------------------------
 
     "player_speed": 7.0,            /* tiles per second */
-    "ghost_speed": 5.2,             /* tiles per second on level 1    */
+    "ghost_speed": 5.0,             /* tiles per second on level 1    */
     "ghost_speed_step": 0.16,       /* added per extra level          */
     "ghost_frightened_speed": 3.2,
     "super_pacgum_duration": 8.0,   /* seconds of edible ghosts       */
-    "ghost_respawn_delay": 6.0,     /* seconds before an eaten ghost
+    "ghost_respawn_delay": 8.0,     /* seconds before an eaten ghost
                                        comes back to its corner       */
     "scatter_duration": 7.0,        /* calm seconds starting a level  */
     "ghost_score_doubling": false,  /* true: 200, 400, 800, 1600 ...  */
@@ -67,7 +67,7 @@
 
     "highscore_size": 10,
     "window_width": 960,
-    "window_height": 720,
+    "window_height": 700,
     "target_fps": 60,
     "backend": "auto"               /* "auto", "pygame" or "tk" */
 }
